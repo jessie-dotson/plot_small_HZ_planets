@@ -1,0 +1,262 @@
+---
+title: "HZ zone changes"
+author: "J. Dotson"
+date: "October 17, 2018"
+output: html_document
+---
+
+Visually compare the EMamajek values with the Thompson et al values
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,fig.show = "animate")
+
+require(ggplot2)
+require(dplyr)
+require(knitr)
+require(readr)
+require(plotly)
+require(tidyr)
+require(ggridges)
+require(gganimate)
+
+knitr::opts_knit$set(root.dir = '../.')
+myecho = FALSE
+```
+
+read in some data...
+
+```{r , echo=myecho}
+
+thompson <- read_csv("data/thompson_apjsaab4f9t7_mrt.csv")
+
+mamajek <- read_csv("data/ExEP_SmallTemperateExoplanetCompendium.csv",comment="#")
+
+
+```
+
+
+
+```{r, echo = myecho}
+
+mamajek2 <- mamajek %>% select(Planet,Radius,Teff,Period,semi_major_axis,S)
+
+compare <- merge(mamajek2, thompson,by.x="Planet",by.y="name",all.y=TRUE)
+
+confirmed <- filter(compare, !is.na(Planet))
+
+```
+
+
+
+```{r, echo=myecho}
+
+plotbase <- ggplot(confirmed) + theme_bw()
+
+plot1 <- plotbase + geom_point(aes(y=Radius,x=Rp),size=2) + ylab("Updated Radius") + xlab("DR25 Radius")
+tempx <- seq(1,2.5, by=0.2)
+line <- data.frame(x=tempx,y=tempx)
+plot1 <- plot1 + geom_line(data=line,aes(x=x,y=y),color="grey")
+print(plot1)
+
+plot3 <- plotbase + geom_point(aes(y=Teff.x,x=Teff.y),size=2) + ylab("Updated Teff") + xlab("DR25 Teff")
+tempx <- seq(3000,5500, by=500)
+line <- data.frame(x=tempx,y=tempx)
+plot3 <- plot3 + geom_line(data=line,aes(x=x,y=y),color="grey")
+print(plot3)
+
+plot2 <- plotbase + geom_point(aes(y=S,x=Sp),size=2) + ylab("Updated S") + xlab("DR25 S")
+tempx <- seq(0,2.5, by=0.2)
+line <- data.frame(x=tempx,y=tempx)
+plot2 <- plot2 + geom_line(data=line,aes(x=x,y=y),color="grey")
+print(plot2)
+
+
+```
+
+
+```{r}
+p1<- ggplot(mtcars, aes(factor(cyl), mpg)) + 
+  geom_boxplot() + 
+  # Here comes the gganimate code
+  transition_states(
+    gear,
+    transition_length = 2,
+    state_length = 1
+  ) +
+  enter_fade() + 
+  exit_shrink() +
+  ease_aes('sine-in-out')
+
+print(p1)
+anim_save("test.gif")
+```
+
+```{r, echo=myecho}
+
+#need to change the data format to narrow in order to use gganimate to do what I want...
+
+planetlist <- confirmed$Planet
+
+temp1 <- filter(thompson,name %in% planetlist)
+temp1 <- temp1 %>% select(name,period,Rp,Sp,Teff)
+temp1$S_in_Recent_Venus <- rep(NA,nrow(temp1))
+temp1$S_out_Early_Mars <- rep(NA,nrow(temp1))
+temp1$opt_in <- rep(TRUE,nrow(temp1))
+temp1$con_in <- rep(TRUE,nrow(temp1))
+temp1$era <- rep("DR25",nrow(temp1))
+
+temp2 <- filter(mamajek, Planet %in% planetlist)
+temp2 <- temp2 %>% select(Planet,Period,Radius,S,Teff,
+                          S_in_Recent_Venus,S_out_Early_Mars,opt_in,con_in)
+temp2$era <- rep("now",nrow(temp2))
+
+mycols <- colnames(temp2)
+colnames(temp1) <- mycols
+
+confirmed_narrow <- rbind(temp1,temp2)
+
+```
+
+```{r, echo=myecho}
+
+
+
+
+pmove <- ggplot(confirmed_narrow) + theme_bw() +
+  geom_point(aes(x=S,y=Teff,size=Radius),alpha=0.7) +
+  transition_states(
+    era,
+    transition_length = 2,
+    state_length=1
+  ) +
+  enter_fade() + exit_shrink() + ease_aes('sine-in-out')
+
+print(pmove)
+
+# this is cool, but there's no guarantee the connected points are actually the same planet...
+
+```
+
+```{r, echo=myecho}
+
+pmove <- ggplot() + theme_bw() + scale_color_gradient(low = "red", high = "gold")
+
+for (i in 1:length(planetlist)){
+    temp <- filter(confirmed_narrow, Planet == planetlist[i])
+    pmove <- pmove + geom_point(data=temp,aes(x=S,y=Teff,size=Radius,color=Teff),alpha=0.7) + 
+    transition_states(
+      era,
+      transition_length = 2,
+      state_length=1
+    ) +
+    enter_fade() + exit_shrink() + ease_aes('sine-in-out')
+}
+
+print(pmove)
+
+anim_save("plots/HZ1.gif")
+```
+
+```{r, echo=myecho}
+
+pp <- ggplot(confirmed_narrow) + theme_bw()
+
+pp1 <- pp + geom_point(aes(x=S,y=Teff,size=Radius,color=era),alpha=0.7) +
+  geom_line(aes(x=S_in_Recent_Venus,y=Teff)) + geom_line(aes(x=S_out_Early_Mars,y=Teff))
+print(pp1)
+
+pp1 <- pp1 + scale_x_log10()
+print(pp1)
+
+
+
+
+```
+
+
+```{r, echo=myecho}
+
+pp2 <- pp + geom_point(aes(x=S,y=Radius,color=Teff))
+print(pp2)
+
+
+```
+
+
+```{r, echo=myecho}
+
+pmove2 <- ggplot() + theme_bw() + scale_color_gradient(low = "red", high = "gold") +
+  xlab("Insolation received at planet (relative to Earth)")
+
+for (i in 1:length(planetlist)){
+    temp <- filter(confirmed_narrow, Planet == planetlist[i])
+    pmove2 <- pmove2 + geom_point(data=temp,aes(x=S,y=Radius,color=Teff,size=Radius),alpha=0.7) + 
+    transition_states(
+      era,
+      transition_length = 2,
+      state_length=1
+    ) +
+    enter_fade() + exit_shrink() + ease_aes('sine-in-out')
+}
+
+print(pmove2)
+
+anim_save("plots/HZ2.gif")
+
+
+
+```
+
+```{r, echo=myecho}
+
+confirmed_narrow <- mutate(confirmed_narrow,opt_in2=ifelse(opt_in,1,0))
+
+pmove3 <- ggplot() + theme_bw() + scale_color_gradient(low = "grey", high = "blue") +
+  xlab("Insolation received at planet (relative to Earth)")
+
+for (i in 1:length(planetlist)){
+    temp <- filter(confirmed_narrow, Planet == planetlist[i])
+    pmove3 <- pmove3 + geom_point(data=temp,aes(x=S,y=Radius,color=opt_in2,size=Radius),alpha=0.7) + 
+    transition_states(
+      era,
+      transition_length = 2,
+      state_length=1
+    ) +
+    enter_fade() + exit_shrink() + ease_aes('sine-in-out')
+}
+
+print(pmove3)
+
+anim_save("plots/HZ3.gif")
+
+
+
+```
+
+```{r, echo=myecho}
+
+confirmed_narrow <- mutate(confirmed_narrow,con_in2=ifelse(con_in,1,0))
+
+pmove4 <- ggplot() + theme_bw() + scale_color_gradient(low = "grey", high = "blue") +
+  xlab("Insolation received at planet (relative to Earth)")
+
+for (i in 1:length(planetlist)){
+    temp <- filter(confirmed_narrow, Planet == planetlist[i])
+    pmove4 <- pmove4 + geom_point(data=temp,aes(x=S,y=Radius,color=con_in2,size=Radius),alpha=0.7) + 
+    transition_states(
+      era,
+      transition_length = 2,
+      state_length=1
+    ) +
+    enter_fade() + exit_shrink() + ease_aes('sine-in-out')
+}
+
+print(pmove4)
+
+anim_save("plots/HZ4.gif")
+
+
+
+```
+
