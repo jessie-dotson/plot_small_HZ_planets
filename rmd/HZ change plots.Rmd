@@ -17,6 +17,7 @@ require(knitr)
 require(readr)
 require(tidyr)
 require(gganimate)
+require(scales)
 
 knitr::opts_knit$set(root.dir = '../.')
 myecho = FALSE
@@ -106,6 +107,23 @@ confirmed_narrow <- rbind(temp1,temp2)
 
 ```
 
+```{r, echo=myecho}
+
+# this function is necessary to plot axes that are both reversed and log
+
+reverselog_trans <- function(base = exp(1)) {
+    trans <- function(x) -log(x, base)
+    inv <- function(x) base^(-x)
+    trans_new(paste0("reverselog-", format(base)), trans, inv, 
+              log_breaks(base = base), 
+              domain = c(1e-100, Inf))
+}
+
+
+```
+
+
+
 Animated plot which moves from the Thompson et al parameters to the updated parameters.
 
 ```{r, echo=myecho}
@@ -128,6 +146,29 @@ print(pmove)
 anim_save("plots/HZ1.gif")
 ```
 
+and again with reversed, log10 x axis to be more like our standard HZ plot
+
+```{r, echo=myecho}
+
+pmove <- ggplot() + theme_bw() + scale_color_gradient(low = "red", high = "gold") + scale_x_continuous(trans=reverselog_trans(10))
+
+for (i in 1:length(planetlist)){
+    temp <- filter(confirmed_narrow, Planet == planetlist[i])
+    pmove <- pmove + geom_point(data=temp,aes(x=S,y=Teff,size=Radius,color=Teff),alpha=0.7) + 
+    transition_states(
+      era,
+      transition_length = 2,
+      state_length=1
+    ) +
+    enter_fade() + exit_shrink() + ease_aes('sine-in-out')
+}
+
+print(pmove)
+
+anim_save("plots/HZ1_r.gif")
+```
+
+
 It's not that easy to see the radius change, so let's put radius on the y axis.
 
 ```{r, echo=myecho}
@@ -149,6 +190,30 @@ for (i in 1:length(planetlist)){
 print(pmove2)
 
 anim_save("plots/HZ2.gif")
+
+
+
+```
+
+```{r, echo=myecho}
+
+pmove2 <- ggplot() + theme_bw() + scale_color_gradient(low = "red", high = "gold") +
+  xlab("Insolation received at planet (relative to Earth)")  + scale_x_continuous(trans=reverselog_trans(10))
+
+for (i in 1:length(planetlist)){
+    temp <- filter(confirmed_narrow, Planet == planetlist[i])
+    pmove2 <- pmove2 + geom_point(data=temp,aes(x=S,y=Radius,color=Teff,size=Radius),alpha=0.7) + 
+    transition_states(
+      era,
+      transition_length = 2,
+      state_length=1
+    ) +
+    enter_fade() + exit_shrink() + ease_aes('sine-in-out')
+}
+
+print(pmove2)
+
+anim_save("plots/HZ2_r.gif")
 
 
 
@@ -182,6 +247,36 @@ anim_save("plots/HZ3.gif")
 
 ```
 
+reversing X axis and putting into log space to be more like our traditional HZ plots...
+
+```{r, echo=myecho}
+
+confirmed_narrow <- mutate(confirmed_narrow,opt_in2=ifelse(opt_in,1,0))
+
+pmove3 <- ggplot() + theme_bw() + scale_color_gradient(low = "grey", high = "blue") +
+  xlab("Insolation received at planet (relative to Earth)")  + scale_x_continuous(trans=reverselog_trans(10))
+
+for (i in 1:length(planetlist)){
+    temp <- filter(confirmed_narrow, Planet == planetlist[i])
+    pmove3 <- pmove3 + geom_point(data=temp,aes(x=S,y=Radius,color=opt_in2,size=Radius),alpha=0.7) + 
+    transition_states(
+      era,
+      transition_length = 2,
+      state_length=1
+    ) +
+    enter_fade() + exit_shrink() + ease_aes('sine-in-out')
+}
+
+print(pmove3)
+
+anim_save("plots/HZ3_r.gif")
+
+
+
+```
+
+
+
 Same plot as above, but with different color encoding.  When in the current best estimates formation the blue planets are smaller than 1.5 Rearth and are within the conservative Kopparapu habitable zone.
 
 
@@ -190,7 +285,7 @@ Same plot as above, but with different color encoding.  When in the current best
 confirmed_narrow <- mutate(confirmed_narrow,con_in2=ifelse(con_in,1,0))
 
 pmove4 <- ggplot() + theme_bw() + scale_color_gradient(low = "grey", high = "blue") +
-  xlab("Insolation received at planet (relative to Earth)")
+  xlab("Insolation received at planet (relative to Earth)") 
 
 for (i in 1:length(planetlist)){
     temp <- filter(confirmed_narrow, Planet == planetlist[i])
@@ -206,6 +301,33 @@ for (i in 1:length(planetlist)){
 print(pmove4)
 
 anim_save("plots/HZ4.gif")
+
+
+
+```
+
+
+```{r, echo=myecho}
+
+confirmed_narrow <- mutate(confirmed_narrow,con_in2=ifelse(con_in,1,0))
+
+pmove4 <- ggplot() + theme_bw() + scale_color_gradient(low = "grey", high = "blue") +
+  xlab("Insolation received at planet (relative to Earth)")  + scale_x_continuous(trans=reverselog_trans(10))
+
+for (i in 1:length(planetlist)){
+    temp <- filter(confirmed_narrow, Planet == planetlist[i])
+    pmove4 <- pmove4 + geom_point(data=temp,aes(x=S,y=Radius,color=con_in2,size=Radius),alpha=0.7) + 
+    transition_states(
+      era,
+      transition_length = 2,
+      state_length=1
+    ) +
+    enter_fade() + exit_shrink() + ease_aes('sine-in-out')
+}
+
+print(pmove4)
+
+anim_save("plots/HZ4_r.gif")
 
 
 
